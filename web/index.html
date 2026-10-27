@@ -419,7 +419,10 @@ const Brain = (() => {
     for (const [x0, y0, sp, pal, n] of [[.18, .25, .4, ["120,60,230", "70,90,230", "170,60,190"], 46], [.84, .78, .32, ["60,110,230", "110,70,220", "40,160,210"], 36], [.62, .08, .3, ["150,60,200", "90,60,210"], 26]])
       for (let i = 0; i < n; i++) blob((x0 + (r() - .5) * sp) * w, (y0 + (r() - .5) * sp) * hh, (.05 + r() * .13) * m, pal[Math.floor(r() * pal.length)], .005 + r() * .009);
     for (let i = 0; i < 200; i++) { const u = r(); blob(u * w, hh * (.08 + u * .55) + (r() - .5) * hh * .1, (.02 + r() * .06) * m, ["150,140,230", "110,120,220", "190,150,230"][i % 3], .006 + r() * .008); }
-    if (scene.background) scene.background.dispose(); scene.background = new THREE.CanvasTexture(c);
+    // One soft blur averages out the browser's gradient dither, which otherwise shows as stripes on wide screens.
+    const sc = document.createElement("canvas"); sc.width = w; sc.height = hh; const sg = sc.getContext("2d"); sg.filter = "blur(6px)"; sg.drawImage(c, 0, 0);
+    if (scene.background) scene.background.dispose();
+    const tex = new THREE.CanvasTexture(sc); tex.generateMipmaps = false; tex.minFilter = tex.magFilter = THREE.LinearFilter; scene.background = tex;
   }
   paintSky();
 
