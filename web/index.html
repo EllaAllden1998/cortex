@@ -43,17 +43,23 @@ h1 { font: 700 clamp(44px, 7.4vw, 96px)/.95 var(--head); letter-spacing: -.035em
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
 .badge.live .dot { background: var(--pass); box-shadow: 0 0 10px var(--pass); animation: pulse 2s infinite; }
 @keyframes pulse { 50% { opacity: .35; } }
-#feed { position: absolute; right: clamp(16px, 4vw, 56px); top: 50%; transform: translateY(-50%); width: 330px; list-style: none; padding: 0; font: 12px/1.35 var(--mono); }
-#feed li { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--mute); animation: in .6s ease; }
-#feed li:first-child { color: #fff; }
-#feed .op { font-weight: 500; } #feed .op.push { color: var(--write); } #feed .op.collect { color: var(--read); }
-#feed .who { color: var(--dim); }
-.feed-head { position: absolute; right: clamp(16px, 4vw, 56px); width: 330px; top: calc(50% - 190px); font: 11px var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; display: flex; justify-content: space-between; }
-.feed-head i { font-style: normal; } .feed-head .w { color: var(--write); } .feed-head .r { color: var(--read); }
-#areas { position: absolute; left: clamp(16px, 5vw, 72px); top: 92px; list-style: none; padding: 0; font: 11px/1 var(--mono); color: var(--dim); }
-#areas li { display: flex; align-items: center; gap: 9px; padding: 4px 0; transition: color .4s; }
-#areas li i { width: 6px; height: 6px; border-radius: 50%; transition: box-shadow .4s, transform .4s; }
-#areas li.hot { color: #fff; } #areas li.hot i { transform: scale(1.8); }
+/* Neon look, same as the brain page (Ella 2026-10-27): glow only on small elements, never full-screen layers. */
+#feedbox { position: absolute; right: clamp(16px, 4vw, 56px); top: 50%; transform: translateY(-50%); width: 340px; padding: 14px 16px 6px;
+           background: rgba(6,5,18,.84); border: 1px solid rgba(180,140,255,.28); border-radius: 14px;
+           box-shadow: 0 0 28px -10px rgba(150,97,255,.8), inset 0 0 18px -12px rgba(180,140,255,.7); }
+#feed { list-style: none; padding: 0; margin: 0; font: 12px/1.35 var(--mono); }
+#feed li { display: grid; grid-template-columns: 46px 1fr; gap: 8px; padding: 7px 0; border-top: 1px solid rgba(180,140,255,.08); color: var(--mute); animation: in .6s ease; }
+#feed li:first-child { color: #fff; background: linear-gradient(90deg, rgba(180,140,255,.12), transparent); }
+#feed .op { font-weight: 600; } #feed .op.push { color: var(--write); text-shadow: 0 0 8px rgba(255,207,122,.85); } #feed .op.collect { color: var(--read); text-shadow: 0 0 8px rgba(127,216,255,.85); }
+#feed .who { color: var(--dim); } #feed .tag { text-shadow: 0 0 7px currentColor; }
+.feed-head { font: 600 10.5px var(--mono); letter-spacing: .18em; color: #a9a6d6; text-transform: uppercase; display: flex; justify-content: space-between; margin-bottom: 8px; }
+.feed-head > span:first-child { display: flex; align-items: center; gap: 8px; text-shadow: 0 0 8px rgba(180,140,255,.6); }
+.feed-head > span:first-child::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--pass); box-shadow: 0 0 6px var(--pass), 0 0 14px var(--pass); animation: pulse 2.4s infinite; }
+.feed-head i { font-style: normal; } .feed-head .w { color: var(--write); text-shadow: 0 0 8px rgba(255,207,122,.8); } .feed-head .r { color: var(--read); text-shadow: 0 0 8px rgba(127,216,255,.8); }
+#areas { position: absolute; left: clamp(16px, 5vw, 72px); top: 92px; list-style: none; padding: 0; font: 500 11px/1 var(--mono); color: #8c89b8; }
+#areas li { display: flex; align-items: center; gap: 11px; padding: 5px 0; transition: color .4s, text-shadow .4s; }
+#areas li i { width: 8px; height: 8px; border-radius: 50%; transition: transform .4s; }
+#areas li.hot { color: #fff; text-shadow: 0 0 8px rgba(255,255,255,.6); } #areas li.hot i { transform: scale(1.9); }
 .scroll-cue { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); font: 11px var(--mono); color: var(--dim); letter-spacing: .2em; }
 @keyframes in { from { opacity: 0; transform: translateY(-6px); } }
 
@@ -64,7 +70,13 @@ section { position: relative; padding: clamp(72px, 11vh, 128px) clamp(16px, 5vw,
 h2 { font: 600 clamp(30px, 3.6vw, 46px)/1.05 var(--head); letter-spacing: -.025em; }
 .sec-head p { color: var(--mute); max-width: 680px; margin-top: 14px; font-size: 16px; }
 .glow-line { height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); max-width: 1280px; margin: 0 auto; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+.card { background: rgba(8,6,22,.7); border: 1px solid rgba(180,140,255,.24); border-radius: 18px;
+        box-shadow: 0 0 30px -14px rgba(150,97,255,.75), inset 0 0 20px -16px rgba(180,140,255,.8); }
+.ev { box-shadow: -6px 0 16px -10px var(--c, transparent); }
+.node.ok rect, .node.pass rect, .node.fail rect { filter: drop-shadow(0 0 6px currentColor); }
+.node.ok { color: rgba(195,168,255,.8); } .node.pass { color: rgba(110,240,180,.8); } .node.fail { color: rgba(255,122,138,.8); }
+.chip:hover { box-shadow: 0 0 14px -4px rgba(180,140,255,.8); }
+.eyebrow, .sec-num { text-shadow: 0 0 10px rgba(150,97,255,.9); }
 
 /* ---------- pipeline ---------- */
 .ask { display: flex; gap: 10px; padding: 8px; border-radius: 16px; background: var(--card2); border: 1px solid var(--line); }
@@ -169,7 +181,7 @@ footer p { max-width: 620px; }
   .pipe, .agent, .evalgrid, .pipe .side { grid-template-columns: 1fr; }
   .pipe .meter { grid-template-columns: 1fr 1fr 1fr; }
   .notes { grid-template-columns: 1fr 1fr; }
-  #feed, .feed-head { display: none; }
+  #feedbox { display: none; }
 }
 @media (max-width: 680px) {
   .sec-head { grid-template-columns: 1fr; gap: 6px; } .sec-num { padding: 0; }
@@ -195,8 +207,8 @@ footer p { max-width: 620px; }
     <span class="badge" id="mode"><span class="dot"></span><span>CHECKING API…</span></span>
   </div>
   <ul id="areas"></ul>
-  <div class="feed-head"><span>Live activity</span><span><i class="w">● write</i> &nbsp;<i class="r">● read</i></span></div>
-  <ul id="feed"></ul>
+  <div id="feedbox"><div class="feed-head"><span>Live activity</span><span><i class="w">● write</i> &nbsp;<i class="r">● read</i></span></div>
+  <ul id="feed"></ul></div>
   <div class="hero-copy">
     <div class="eyebrow">Ella Alldén · systems I built</div>
     <h1>Cortex</h1>
@@ -334,7 +346,19 @@ const h = (tag, attrs = {}, ...kids) => {      // tiny DOM builder; text always 
   return el;
 };
 const svg = (tag, attrs = {}, ...kids) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); for (const c of kids) if (c != null) el.append(c.nodeType ? c : String(c)); return el; };
-const area = k => D.areas[k] || { label: k, color: "#9aa5b1" };
+// Neon version of an area colour for the overlay (same formula as the brain page); the 3D brain keeps the original.
+function neon(hex) {
+  const n = parseInt(hex.slice(1), 16), [r, g, b] = [n >> 16, (n >> 8) & 255, n & 255].map(v => v / 255);
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let hh = 0, l = (mx + mn) / 2, s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  if (d) { hh = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; hh = (hh * 60 + 360) % 360; }
+  s = Math.min(1, s * 1.25 + .25); l = Math.min(.7, Math.max(.6, l + .08));
+  const C = (1 - Math.abs(2 * l - 1)) * s, X = C * (1 - Math.abs((hh / 60) % 2 - 1)), m = l - C / 2;
+  const [R, G, B] = hh < 60 ? [C, X, 0] : hh < 120 ? [X, C, 0] : hh < 180 ? [0, C, X] : hh < 240 ? [0, X, C] : hh < 300 ? [X, 0, C] : [C, 0, X];
+  return `rgb(${[R + m, G + m, B + m].map(v => Math.round(v * 255)).join(",")})`;
+}
+const area = k => D.areas[k] ? { label: D.areas[k].label, color: neon(D.areas[k].color) } : { label: k, color: "#b8b5e0" };
+const dotStyle = c => `background:radial-gradient(circle,#fff 0 22%,${c} 42%);box-shadow:0 0 4px ${c},0 0 10px ${c},0 0 20px ${c}`;
 const noteArea = id => (D.notes.find(n => n.id === id) || {}).area;
 const usd = x => x === 0 ? "$0" : x < 0.001 ? "$" + x.toFixed(6) : "$" + x.toFixed(4);
 const nice = id => id.replace(/-/g, " ");
@@ -349,13 +373,13 @@ let LIVE = false;
   $("#stats").append(...items.map(([v, l]) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l))));
   $("#stats-note").textContent = r ? `Counts from my real brain over ${r.days} working days. The content is private, so the demo below runs on a fictional one.` : "";
   const used = [...new Set(D.notes.map(n => n.area))];
-  $("#areas").append(...used.map(k => h("li", { "data-k": k }, h("i", { style: `background:${area(k).color};box-shadow:0 0 8px ${area(k).color}` }), area(k).label)));
+  $("#areas").append(...used.map(k => h("li", { "data-k": k }, h("i", { style: dotStyle(area(k).color) }), area(k).label)));
 })();
 
 function pushFeed(e) {
   const a = area(noteArea(e.note));
   const li = h("li", {}, h("span", { class: "op " + e.op }, e.op === "push" ? "WRITE" : "READ"),
-    h("span", {}, h("span", { class: "who" }, e.session + (e.op === "push" ? " → " : " ← ")), h("span", { style: `color:${a.color}` }, a.label + " › "), nice(e.note)));
+    h("span", {}, h("span", { class: "who" }, e.session + (e.op === "push" ? " → " : " ← ")), h("span", { class: "tag", style: `color:${a.color}` }, a.label + " › "), nice(e.note)));
   const f = $("#feed"); f.prepend(li); while (f.children.length > 9) f.lastChild.remove();
   const ar = document.querySelector(`#areas li[data-k="${noteArea(e.note)}"]`);
   if (ar) { ar.classList.add("hot"); clearTimeout(ar._t); ar._t = setTimeout(() => ar.classList.remove("hot"), 1600); }
@@ -579,7 +603,7 @@ function showAnswer(r) {
   const para = h("p");
   if (r.answer) for (const part of r.answer.split(/(\[[a-z0-9-]+\])/)) para.append(/^\[[a-z0-9-]+\]$/.test(part) ? h("span", { class: "cite" }, part.slice(1, -1)) : part);
   else para.textContent = "That isn't in the brain, or the notes that mention it can't back an answer. Refusing costs nothing and doesn't guess.";
-  const ev = r.evidence.map(e => h("div", { class: "ev", style: `border-left-color:${area(e.area).color}` },
+  const ev = r.evidence.map(e => h("div", { class: "ev", style: `border-left-color:${area(e.area).color};--c:${area(e.area).color}` },
     h("div", { class: "h" }, h("span", { style: `color:${area(e.area).color}` }, area(e.area).label), h("span", {}, `score ${e.score.toFixed(2)} · ${e.age_days}d old`)),
     h("div", { class: "n" }, e.note_id), h("q", {}, e.quote)));
   box.append(h("div", { class: "verdict " + r.outcome }, r.outcome === "answered" ? `Answered · ${r.evidence.length} cited note${r.evidence.length === 1 ? "" : "s"} · ${usd(r.cost_usd)}` : `Refused · ${usd(r.cost_usd)}`),
