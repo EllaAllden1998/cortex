@@ -1,0 +1,17 @@
+{"q": "How should agents report a finished task?", "expect": ["working-style"]}
+{"q": "When may an agent say something is verified?", "expect": ["never-overstate"]}
+{"q": "How are dashboard changes released?", "expect": ["release-rules"]}
+{"q": "Where does the dashboard get its numbers from?", "expect": ["dashboard-data-sources"]}
+{"q": "What raises an alert on the data health card?", "expect": ["data-health-check"]}
+{"q": "How is the keyword plan for the site organised?", "expect": ["seo-keyword-plan"]}
+{"q": "How do AI search engines pick their sources?", "expect": ["seo-ai-search"]}
+{"q": "Should we A/B test with under 1000 visitors a month?", "expect": ["growth-experiments"]}
+{"q": "What is our north star metric?", "expect": ["growth-north-star"]}
+{"q": "Why do the hook scripts live outside the synced folder?", "expect": ["code-security-basics", "brain-hooks"]}
+{"q": "Which scheduled routines run and do they act live?", "expect": ["scheduled-routines"]}
+{"q": "What are the rules for numbers on presentation slides?", "expect": ["deck-rules"]}
+{"q": "Which questions do we send to a restaurant prospect?", "expect": ["prospect-questions"]}
+{"q": "May client personal data go into a new AI tool?", "expect": ["ai-policy"]}
+{"q": "What is the capital of Australia?", "expect": []}
+{"q": "Write me a poem about autumn leaves", "expect": []}
+{"q": "What was the revenue last quarter?", "expect": []}

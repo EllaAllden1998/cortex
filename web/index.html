@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cortex — Ella Alldén</title>
+<meta name="description" content="A shared memory for a team of AI agents, with a compiled answer pipeline, cost gating, an auditable trace and an agent that edits the pipeline with confirmation.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #04030a; --bg2: #08061a; --ink: #ecebff; --mute: #9a97c0; --dim: #5d5a85;
+  --line: rgba(160,150,255,.14); --card: rgba(255,255,255,.028); --card2: rgba(255,255,255,.05);
+  --violet: #9661ff; --violet2: #c3a8ff; --read: #7fd8ff; --write: #ffcf7a; --pass: #6ef0b4; --fail: #ff7a8a;
+  --sans: "Inter", system-ui, sans-serif; --head: "Space Grotesk", var(--sans); --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+a { color: var(--violet2); text-decoration: none; } a:hover { text-decoration: underline; }
+::selection { background: rgba(150,97,255,.45); }
+
+/* ---------- hero ---------- */
+#hero { position: relative; height: 100vh; min-height: 640px; overflow: hidden; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; }
+#hero::after { content: ""; position: absolute; inset: auto 0 0 0; height: 58%; pointer-events: none;
+               background: linear-gradient(to top, rgba(4,3,10,.92) 25%, rgba(4,3,10,.55) 60%, transparent); }
+.hero-copy, .scroll-cue { z-index: 1; }
+#gl:active { cursor: grabbing; }
+.hero-copy { position: absolute; left: clamp(16px, 5vw, 72px); bottom: clamp(32px, 9vh, 96px); max-width: 560px; pointer-events: none; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .22em; text-transform: uppercase; color: var(--violet2); }
+h1 { font: 700 clamp(44px, 7.4vw, 96px)/.95 var(--head); letter-spacing: -.035em; margin: 18px 0 18px;
+     background: linear-gradient(100deg, #fff 20%, var(--violet2) 60%, var(--read)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.lede { font-size: clamp(16px, 1.5vw, 19px); color: #cfcdf0; max-width: 520px; }
+.stats { display: flex; gap: 28px; margin-top: 28px; flex-wrap: wrap; }
+.stat b { display: block; font: 600 28px/1 var(--head); color: #fff; font-variant-numeric: tabular-nums; }
+.stat span { font: 11px/1.4 var(--mono); color: var(--mute); letter-spacing: .08em; text-transform: uppercase; }
+.stats-note { margin-top: 12px; font: 11px var(--mono); color: var(--dim); }
+.hero-top { position: absolute; top: 22px; left: clamp(16px, 5vw, 72px); right: clamp(16px, 5vw, 72px); display: flex; justify-content: space-between; align-items: center; font: 12px var(--mono); color: var(--mute); }
+.hero-top nav { display: flex; gap: 22px; } .hero-top nav a { color: var(--mute); } .hero-top nav a:hover { color: #fff; text-decoration: none; }
+.badge { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 99px; background: rgba(4,3,10,.6); font: 11px var(--mono); letter-spacing: .06em; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); }
+.badge.live .dot { background: var(--pass); box-shadow: 0 0 10px var(--pass); animation: pulse 2s infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+#feed { position: absolute; right: clamp(16px, 4vw, 56px); top: 50%; transform: translateY(-50%); width: 330px; list-style: none; padding: 0; font: 12px/1.35 var(--mono); }
+#feed li { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--mute); animation: in .6s ease; }
+#feed li:first-child { color: #fff; }
+#feed .op { font-weight: 500; } #feed .op.push { color: var(--write); } #feed .op.collect { color: var(--read); }
+#feed .who { color: var(--dim); }
+.feed-head { position: absolute; right: clamp(16px, 4vw, 56px); width: 330px; top: calc(50% - 190px); font: 11px var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; display: flex; justify-content: space-between; }
+.feed-head i { font-style: normal; } .feed-head .w { color: var(--write); } .feed-head .r { color: var(--read); }
+#areas { position: absolute; left: clamp(16px, 5vw, 72px); top: 92px; list-style: none; padding: 0; font: 11px/1 var(--mono); color: var(--dim); }
+#areas li { display: flex; align-items: center; gap: 9px; padding: 4px 0; transition: color .4s; }
+#areas li i { width: 6px; height: 6px; border-radius: 50%; transition: box-shadow .4s, transform .4s; }
+#areas li.hot { color: #fff; } #areas li.hot i { transform: scale(1.8); }
+.scroll-cue { position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); font: 11px var(--mono); color: var(--dim); letter-spacing: .2em; }
+@keyframes in { from { opacity: 0; transform: translateY(-6px); } }
+
+/* ---------- sections ---------- */
+section { position: relative; padding: clamp(72px, 11vh, 128px) clamp(16px, 5vw, 72px); max-width: 1280px; margin: 0 auto; }
+.sec-head { display: grid; grid-template-columns: 120px 1fr; gap: 24px; margin-bottom: 44px; }
+.sec-num { font: 500 12px var(--mono); color: var(--violet2); letter-spacing: .18em; padding-top: 12px; }
+h2 { font: 600 clamp(30px, 3.6vw, 46px)/1.05 var(--head); letter-spacing: -.025em; }
+.sec-head p { color: var(--mute); max-width: 680px; margin-top: 14px; font-size: 16px; }
+.glow-line { height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); max-width: 1280px; margin: 0 auto; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; }
+
+/* ---------- pipeline ---------- */
+.ask { display: flex; gap: 10px; padding: 8px; border-radius: 16px; background: var(--card2); border: 1px solid var(--line); }
+.ask input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #fff; font: 16px var(--sans); padding: 10px 12px; }
+.ask input::placeholder { color: var(--dim); }
+button { font: 500 14px var(--sans); color: #fff; border: 0; cursor: pointer; border-radius: 11px; padding: 11px 20px;
+         background: linear-gradient(135deg, #7b46ff, #5a2fd6); box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 8px 30px -10px rgba(150,97,255,.8); transition: transform .15s, opacity .2s; }
+button:hover { transform: translateY(-1px); } button:disabled { opacity: .4; cursor: default; transform: none; }
+button.ghost { background: none; box-shadow: 0 0 0 1px var(--line) inset; color: var(--mute); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 26px; }
+.chip { font: 12.5px var(--sans); color: var(--mute); padding: 7px 13px; border-radius: 99px; border: 1px solid var(--line); background: none; box-shadow: none; }
+.chip:hover { color: #fff; border-color: rgba(195,168,255,.45); transform: none; }
+.hint { font: 12px var(--mono); color: var(--dim); margin-top: -14px; margin-bottom: 22px; }
+.pipe { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.pipe .side { display: grid; grid-template-columns: 300px minmax(0, 1fr); align-items: start; }
+.pipe .meter { grid-template-columns: 1fr; gap: 18px; }
+.graph-card { padding: 18px 12px 8px; position: relative; overflow: hidden; }
+.graph-card svg { width: 100%; height: auto; display: block; }
+.graph-meta { display: flex; justify-content: space-between; padding: 0 10px 8px; font: 11px var(--mono); color: var(--dim); letter-spacing: .06em; flex-wrap: wrap; gap: 8px; }
+.graph-meta b { color: var(--mute); font-weight: 500; }
+.edge { fill: none; stroke: rgba(160,150,255,.2); stroke-width: 1.4; transition: stroke .3s; }
+.edge.taken { stroke: var(--violet2); stroke-width: 2; stroke-dasharray: 5 6; animation: flow .6s linear infinite; filter: drop-shadow(0 0 4px rgba(150,97,255,.9)); }
+@keyframes flow { to { stroke-dashoffset: -11; } }
+.elabel { font: 9.5px var(--mono); fill: var(--dim); letter-spacing: .08em; }
+.node rect { fill: #0d0a22; stroke: rgba(160,150,255,.28); stroke-width: 1; transition: all .35s; }
+.node text { font-family: var(--mono); }
+.node .nk { font-size: 9.5px; fill: var(--dim); letter-spacing: .12em; }
+.node .ni { font-size: 13px; fill: #e9e7ff; font-weight: 500; }
+.node .np { font-size: 10.5px; fill: var(--mute); }
+.node.skipped { opacity: .28; }
+.node.active rect { stroke: #fff; fill: #1d1450; filter: drop-shadow(0 0 14px rgba(150,97,255,.9)); }
+.node.ok rect { stroke: var(--violet2); fill: #150f3a; }
+.node.pass rect { stroke: var(--pass); fill: #0b2a22; } .node.fail rect { stroke: var(--fail); fill: #2e0d16; }
+.node.ok .ni, .node.pass .ni, .node.fail .ni { fill: #fff; }
+.side { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.trace { padding: 16px 18px; font: 12px/1.55 var(--mono); max-height: 380px; overflow: auto; }
+.trace h4, .panel h4 { font: 500 11px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); margin-bottom: 10px; display: flex; justify-content: space-between; }
+.tr { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px dashed rgba(255,255,255,.05); animation: in .4s; }
+.tr .s { width: 7px; height: 7px; border-radius: 50%; margin-top: 6px; background: var(--violet2); }
+.tr.pass .s { background: var(--pass); } .tr.fail .s { background: var(--fail); } .tr.skipped { opacity: .35; } .tr.skipped .s { background: var(--dim); }
+.tr .d { color: var(--mute); word-break: break-word; } .tr .d b { color: #fff; font-weight: 500; } .tr .c { color: var(--dim); }
+.meter { padding: 18px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.meter div b { display: block; font: 600 22px/1.1 var(--head); font-variant-numeric: tabular-nums; }
+.meter div span { font: 10.5px var(--mono); color: var(--dim); letter-spacing: .08em; text-transform: uppercase; }
+.answer { margin-top: 18px; padding: 24px 26px; display: none; }
+.answer.show { display: block; animation: in .5s; }
+.answer .verdict { font: 500 11px var(--mono); letter-spacing: .16em; text-transform: uppercase; }
+.answer .verdict.answered { color: var(--pass); } .answer .verdict.refused { color: var(--fail); }
+.answer p { font-size: 17px; line-height: 1.6; margin: 10px 0 18px; color: #f2f1ff; }
+.cite { display: inline-block; font: 11px var(--mono); padding: 1px 7px; border-radius: 6px; background: rgba(150,97,255,.18); color: var(--violet2); margin: 0 2px; vertical-align: 1px; }
+.evidence { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.ev { padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,.025); border: 1px solid var(--line); border-left: 3px solid; }
+.ev .h { display: flex; justify-content: space-between; font: 11px var(--mono); color: var(--dim); margin-bottom: 6px; }
+.ev .n { font: 500 13px var(--mono); color: #fff; } .ev q { display: block; color: var(--mute); font-size: 13.5px; margin-top: 6px; quotes: "“" "”"; }
+
+/* ---------- agent ---------- */
+.agent { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.panel { padding: 22px 24px; }
+.op { display: grid; grid-template-columns: 96px 1fr; gap: 10px; font: 12.5px var(--mono); padding: 9px 12px; border-radius: 10px; background: rgba(255,255,255,.03); margin-bottom: 8px; }
+.op .k { color: var(--write); } .op .v { color: #fff; word-break: break-word; }
+.diffrow { font: 12.5px var(--mono); padding: 4px 0; } .diffrow .old { color: var(--fail); text-decoration: line-through; opacity: .8; } .diffrow .new { color: var(--pass); }
+.status { font: 12.5px var(--mono); margin-top: 14px; padding: 12px 14px; border-radius: 10px; }
+.status.ok { background: rgba(110,240,180,.08); color: var(--pass); } .status.bad { background: rgba(255,122,138,.08); color: var(--fail); } .status.wait { background: rgba(255,207,122,.08); color: var(--write); }
+.steps { display: flex; gap: 0; margin: 4px 0 22px; font: 11px var(--mono); color: var(--dim); letter-spacing: .06em; flex-wrap: wrap; }
+.steps span { padding: 6px 12px; border: 1px solid var(--line); margin-right: -1px; } .steps span:first-child { border-radius: 99px 0 0 99px; } .steps span:last-child { border-radius: 0 99px 99px 0; }
+.steps span.on { color: #fff; background: rgba(150,97,255,.22); border-color: rgba(150,97,255,.5); }
+
+/* ---------- evals ---------- */
+.evalgrid { display: grid; grid-template-columns: 300px 1fr; gap: 18px; }
+.bignums { padding: 26px; display: flex; flex-direction: column; gap: 22px; }
+.bignums b { font: 600 46px/1 var(--head); display: block; letter-spacing: -.02em; }
+.bignums span { font: 11px var(--mono); color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+.bignums small { display: block; color: var(--mute); font-size: 13px; margin-top: 4px; }
+table { width: 100%; border-collapse: collapse; font: 12.5px var(--mono); }
+th { text-align: left; font-weight: 500; color: var(--dim); letter-spacing: .1em; font-size: 10.5px; text-transform: uppercase; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.04); color: var(--mute); vertical-align: top; }
+td:first-child { color: #e9e7ff; font-family: var(--sans); font-size: 13.5px; }
+.pill { font-size: 10.5px; padding: 2px 8px; border-radius: 99px; letter-spacing: .06em; }
+.pill.ok { background: rgba(110,240,180,.12); color: var(--pass); } .pill.no { background: rgba(255,122,138,.12); color: var(--fail); }
+.route { color: var(--dim); } .route .m { color: var(--write); }
+.table-wrap { overflow-x: auto; }
+
+/* ---------- engineering notes ---------- */
+.notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.note { padding: 24px; position: relative; overflow: hidden; }
+.note .no { font: 500 11px var(--mono); color: var(--violet2); letter-spacing: .14em; }
+.note h3 { font: 600 19px/1.25 var(--head); margin: 12px 0 10px; letter-spacing: -.01em; }
+.note p { color: var(--mute); font-size: 14px; }
+.note code, .map code { font: 12px var(--mono); color: var(--violet2); background: rgba(150,97,255,.1); padding: 1px 5px; border-radius: 4px; }
+.note::after { content: ""; position: absolute; right: -60px; top: -60px; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(rgba(150,97,255,.18), transparent 70%); }
+
+/* ---------- map ---------- */
+.map { display: grid; grid-template-columns: 1fr; }
+.maprow { display: grid; grid-template-columns: 1fr 40px 1.3fr 200px; gap: 16px; align-items: center; padding: 18px 4px; border-bottom: 1px solid var(--line); }
+.maprow .q { font: italic 15px var(--sans); color: #d9d7f7; } .maprow .arrow { color: var(--violet); font: 18px var(--mono); }
+.maprow .a { color: var(--mute); font-size: 14px; } .maprow .f { font: 12px var(--mono); color: var(--dim); text-align: right; }
+
+footer { max-width: 1280px; margin: 0 auto; padding: 40px clamp(16px, 5vw, 72px) 60px; display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; font: 12px var(--mono); color: var(--dim); border-top: 1px solid var(--line); }
+footer p { max-width: 620px; }
+
+@media (max-width: 1080px) {
+  .pipe, .agent, .evalgrid, .pipe .side { grid-template-columns: 1fr; }
+  .pipe .meter { grid-template-columns: 1fr 1fr 1fr; }
+  .notes { grid-template-columns: 1fr 1fr; }
+  #feed, .feed-head { display: none; }
+}
+@media (max-width: 680px) {
+  .sec-head { grid-template-columns: 1fr; gap: 6px; } .sec-num { padding: 0; }
+  .notes { grid-template-columns: 1fr; }
+  .hero-top nav { display: none; } #areas { display: none; }
+  .maprow { grid-template-columns: 1fr; gap: 4px; } .maprow .arrow { display: none; } .maprow .f { text-align: left; }
+  .stats { gap: 20px; } .stat b { font-size: 22px; }
+  .meter { grid-template-columns: 1fr 1fr 1fr; }
+  .ask { flex-direction: column; } .ask button { width: 100%; }
+  .graph-card { overflow-x: auto; } .graph-card svg { min-width: 900px; }
+  .chip { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { .edge.taken { animation: none; } * { animation-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+
+<header id="hero">
+  <canvas id="gl" aria-label="A 3D brain; each area lights up when an agent reads or writes a note there"></canvas>
+  <div class="hero-top">
+    <span>CORTEX · v1</span>
+    <nav><a href="#pipeline">Pipeline</a><a href="#agent">Agent</a><a href="#evals">Evals</a><a href="#notes">Engineering notes</a></nav>
+    <span class="badge" id="mode"><span class="dot"></span><span>CHECKING API…</span></span>
+  </div>
+  <ul id="areas"></ul>
+  <div class="feed-head"><span>Live activity</span><span><i class="w">● write</i> &nbsp;<i class="r">● read</i></span></div>
+  <ul id="feed"></ul>
+  <div class="hero-copy">
+    <div class="eyebrow">Ella Alldén · systems I built</div>
+    <h1>Cortex</h1>
+    <p class="lede">A shared memory that a team of AI agents reads, writes and is held accountable to. Questions run through a compiled pipeline that only calls a model when it has to, and every answer comes with its evidence.</p>
+    <div class="stats" id="stats"></div>
+    <div class="stats-note" id="stats-note"></div>
+  </div>
+  <div class="scroll-cue">SCROLL ↓</div>
+</header>
+
+<div class="glow-line"></div>
+
+<section id="pipeline">
+  <div class="sec-head">
+    <div class="sec-num">01 / PIPELINE</div>
+    <div>
+      <h2>From a question to an answer you can audit</h2>
+      <p>The graph below is compiled into an execution plan: validated, ordered, priced for its worst case. A free retrieval score decides whether a model is needed at all. A verifier refuses any answer that cites a note it never retrieved, or one that is too old.</p>
+    </div>
+  </div>
+  <form class="ask" id="askform" autocomplete="off">
+    <input id="q" placeholder="Ask the brain something…" aria-label="Question">
+    <button id="askbtn" type="submit">Run pipeline</button>
+  </form>
+  <div class="chips" id="chips"></div>
+  <div class="hint" id="askhint"></div>
+  <div class="pipe">
+    <div class="card graph-card">
+      <div class="graph-meta"><span>GRAPH <b id="gid"></b></span><span>PLAN <b id="ghash"></b></span><span>WORST CASE <b id="gworst"></b></span></div>
+      <svg id="graph" viewBox="0 0 980 360" role="img" aria-label="Pipeline graph"></svg>
+    </div>
+    <div class="side">
+      <div class="card meter">
+        <div><b id="m-conf">–</b><span>confidence</span></div>
+        <div><b id="m-cost">$0</b><span>cost</span></div>
+        <div><b id="m-calls">0</b><span>model calls</span></div>
+      </div>
+      <div class="card trace"><h4><span>Trace</span><span id="runid"></span></h4><div id="trace"><div class="tr skipped"><i class="s"></i><span class="d">Run a question to see every step.</span><span></span></div></div></div>
+    </div>
+  </div>
+  <div class="card answer" id="answer"></div>
+</section>
+
+<div class="glow-line"></div>
+
+<section id="agent">
+  <div class="sec-head">
+    <div class="sec-num">02 / AGENT</div>
+    <div>
+      <h2>An agent that edits the pipeline, and never deploys on its own</h2>
+      <p>The model doesn't write the graph. It proposes a few typed edit operations. They are applied to a copy and compiled. If compiling fails, the errors go back to the model for repair. A proposal that compiles waits for a human, and confirming it fails if the graph changed in the meantime.</p>
+    </div>
+  </div>
+  <div class="steps" id="agentsteps"><span>1 · Instruction</span><span>2 · Typed ops</span><span>3 · Compile</span><span>4 · Human confirms</span><span>5 · Deploy</span></div>
+  <form class="ask" id="agentform" autocomplete="off">
+    <input id="instr" placeholder="Tell the agent how the pipeline should change…" aria-label="Instruction">
+    <button type="submit">Propose</button>
+  </form>
+  <div class="chips" id="agentchips"></div>
+  <div class="agent">
+    <div class="card panel"><h4><span>Proposed operations</span><span id="planner"></span></h4><div id="ops"></div></div>
+    <div class="card panel"><h4><span>What changes</span><span id="pver"></span></h4><div id="diff"></div><div id="pstatus"></div><div style="margin-top:16px;display:flex;gap:10px"><button id="confirm" disabled>Confirm &amp; deploy</button></div></div>
+  </div>
+</section>
+
+<div class="glow-line"></div>
+
+<section id="evals">
+  <div class="sec-head">
+    <div class="sec-num">03 / EVALS</div>
+    <div>
+      <h2>Non-deterministic parts, deterministic checks</h2>
+      <p>A golden set of answerable and unanswerable questions runs in CI against the same pipeline, offline and for free. With a key it runs against Claude and reports real cost. The test suite fails if accuracy drops, a refusal breaks, or the cost gate starts letting most questions through to a model.</p>
+    </div>
+  </div>
+  <div class="evalgrid">
+    <div class="card bignums" id="bignums"></div>
+    <div class="card table-wrap"><table><thead><tr><th>Question</th><th>Result</th><th>Route</th></tr></thead><tbody id="evalrows"></tbody></table></div>
+  </div>
+</section>
+
+<div class="glow-line"></div>
+
+<section id="notes">
+  <div class="sec-head">
+    <div class="sec-num">04 / NOTES</div>
+    <div>
+      <h2>Engineering notes</h2>
+      <p>The decisions I would make again, and why. Most came from something going wrong first.</p>
+    </div>
+  </div>
+  <div class="notes">
+    <div class="card note"><div class="no">01</div><h3>Every read and write is an event</h3><p>A hook appends each agent's brain access to an append-only <code>activity.jsonl</code>. The 3D brain, the session map and the audit are all views of that one log. Nothing is drawn that didn't happen.</p></div>
+    <div class="card note"><div class="no">02</div><h3>Agents propose, a human approves</h3><p>Scheduled agents scan mail, chat and the brain itself, but they only write proposals. Anything live waits for an explicit yes. The pipeline agent here follows the same rule, enforced in code rather than in a prompt.</p></div>
+    <div class="card note"><div class="no">03</div><h3>Say less than you verified</h3><p>"Verified" may only describe what was actually observed. In the pipeline this became the verifier: no citation, or a citation to a note that was never retrieved, means a refusal and not a guess.</p></div>
+    <div class="card note"><div class="no">04</div><h3>Code that runs everywhere stays out of the sync</h3><p>The memory syncs through a shared company drive. Hook scripts run in every session, so they live outside it, where a synced file can't change what executes. No secrets ever enter the brain.</p></div>
+    <div class="card note"><div class="no">05</div><h3>Measure on the machine that matters</h3><p>The first brain had over 650k triangles and stuttered on an integrated GPU. Profiling showed that full-screen transparent layers cost more than the geometry. The fix: clustered meshes, a painted sky and an adaptive quality ladder.</p></div>
+    <div class="card note"><div class="no">06</div><h3>The eval found the bug I didn't</h3><p>Quoted evidence contained <code>[[links]]</code> from note footers, and the verifier read them as citations to notes that were never retrieved. It rejected correct answers. The golden set caught it at 71 %. The fix was in the store, not in the verifier.</p></div>
+  </div>
+</section>
+
+<div class="glow-line"></div>
+
+<section id="map">
+  <div class="sec-head">
+    <div class="sec-num">05 / FIT</div>
+    <div><h2>Where this meets the role</h2><p>The same problems at a smaller scale. Code in <code style="font:12px var(--mono);color:var(--violet2)">cortex/</code>: Python, FastAPI, Pydantic, pytest.</p></div>
+  </div>
+  <div class="map" id="maprows"></div>
+</section>
+
+<footer>
+  <p>Cortex runs here on a fictional demo brain. My real one holds client work, so only its counts appear above. Brain model: Human Reference Atlas (HuBMAP) / Allen Human Reference Atlas 3D, 2020, CC BY 4.0. Built with Claude Code. The design, the rules and the decisions are mine.</p>
+  <p id="foot-api"></p>
+</footer>
+
+<script src="data.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="brain-lite.js"></script>
+<script>
+"use strict";
+const D = window.CORTEX;
+const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+const $ = s => document.querySelector(s);
+const h = (tag, attrs = {}, ...kids) => {      // tiny DOM builder; text always goes in as text, never as HTML
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "style" ? el.setAttribute("style", v) : k.startsWith("on") ? el.addEventListener(k.slice(2), v) : el.setAttribute(k, v);
+  for (const c of kids.flat()) if (c != null && c !== false) el.append(c.nodeType ? c : String(c));
+  return el;
+};
+const svg = (tag, attrs = {}, ...kids) => { const el = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v); for (const c of kids) if (c != null) el.append(c.nodeType ? c : String(c)); return el; };
+const area = k => D.areas[k] || { label: k, color: "#9aa5b1" };
+const noteArea = id => (D.notes.find(n => n.id === id) || {}).area;
+const usd = x => x === 0 ? "$0" : x < 0.001 ? "$" + x.toFixed(6) : "$" + x.toFixed(4);
+const nice = id => id.replace(/-/g, " ");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let LIVE = false;
+
+// ---------------- hero: stats, areas, feed ----------------
+(function heroText() {
+  const r = D.real;
+  const items = r ? [[r.notes, "notes"], [r.areas, "areas"], [r.events.toLocaleString("en"), "logged reads & writes"], [r.sessions, "agent sessions"]]
+                  : [[D.notes.length, "notes"], [Object.keys(D.areas).length, "areas"], [D.events.length, "events"]];
+  $("#stats").append(...items.map(([v, l]) => h("div", { class: "stat" }, h("b", {}, v), h("span", {}, l))));
+  $("#stats-note").textContent = r ? `Counts from my real brain over ${r.days} working days. The content is private, so the demo below runs on a fictional one.` : "";
+  const used = [...new Set(D.notes.map(n => n.area))];
+  $("#areas").append(...used.map(k => h("li", { "data-k": k }, h("i", { style: `background:${area(k).color};box-shadow:0 0 8px ${area(k).color}` }), area(k).label)));
+})();
+
+function pushFeed(e) {
+  const a = area(noteArea(e.note));
+  const li = h("li", {}, h("span", { class: "op " + e.op }, e.op === "push" ? "WRITE" : "READ"),
+    h("span", {}, h("span", { class: "who" }, e.session + (e.op === "push" ? " → " : " ← ")), h("span", { style: `color:${a.color}` }, a.label + " › "), nice(e.note)));
+  const f = $("#feed"); f.prepend(li); while (f.children.length > 9) f.lastChild.remove();
+  const ar = document.querySelector(`#areas li[data-k="${noteArea(e.note)}"]`);
+  if (ar) { ar.classList.add("hot"); clearTimeout(ar._t); ar._t = setTimeout(() => ar.classList.remove("hot"), 1600); }
+}
+
+// ---------------- hero: the 3D brain ----------------
+const Brain = (() => {
+  if (!window.THREE || !window.BRAIN_LITE) return { spark() {} };
+  const VIOLET = [150, 95, 255];
+  const rgb = hx => { const n = parseInt(hx.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+  const glc = $("#gl");
+  let W = glc.clientWidth, H = glc.clientHeight;
+  const renderer = new THREE.WebGLRenderer({ canvas: glc, antialias: true });
+  renderer.setPixelRatio(Math.min(1.25, devicePixelRatio || 1)); renderer.setSize(W, H, false); renderer.setClearColor(0x000000, 1);
+  const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(32, W / H, .01, 300);
+  const composer = new THREE.EffectComposer(renderer);
+  composer.addPass(new THREE.RenderPass(scene, camera));
+  const bloom = new THREE.UnrealBloomPass(new THREE.Vector2(W, H), 1.0, .55, .04); composer.addPass(bloom);
+
+  // Sky: stars as one Points draw; nebula painted once into the background (cheap on integrated GPUs).
+  const space = new THREE.Group(); scene.add(space);
+  const spaceU = { uTime: { value: 0 } };
+  { const N = 4200, pos = new Float32Array(N * 3), size = new Float32Array(N), ph = new Float32Array(N); let s = 7;
+    const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < N; i++) { const rad = [70, 110, 160][i % 3] * (.85 + r() * .3), u = r() * 2 - 1, a = r() * 6.283, q = Math.sqrt(1 - u * u);
+      pos.set([Math.cos(a) * q * rad, u * rad, Math.sin(a) * q * rad], i * 3); size[i] = r() < .03 ? 3.2 : r() < .2 ? 1.8 : 1; ph[i] = r() * 6.28; }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("aSize", new THREE.BufferAttribute(size, 1)); g.setAttribute("aPhase", new THREE.BufferAttribute(ph, 1));
+    space.add(new THREE.Points(g, new THREE.ShaderMaterial({ uniforms: spaceU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      vertexShader: `attribute float aSize, aPhase; uniform float uTime; varying float vA; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vA = .75 + .25 * sin(uTime * (.6 + fract(aPhase) * .9) + aPhase); gl_PointSize = aSize * 1.35 * (.8 + .4 * vA); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `varying float vA; void main(){ float d = length(gl_PointCoord - .5); float a = smoothstep(.5, 0., d); gl_FragColor = vec4(vec3(.85,.88,1.) * a * a * vA * .9, 1.); }` }))); }
+  function paintSky() {
+    const c = document.createElement("canvas"), w = c.width = Math.min(2048, W), hh = c.height = Math.min(2048, H), m = Math.max(w, hh), g = c.getContext("2d"); let s = 11;
+    const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    g.fillStyle = "#000"; g.fillRect(0, 0, w, hh); g.globalCompositeOperation = "lighter";
+    const blob = (x, y, rad, p, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, rad); gr.addColorStop(0, `rgba(${p},${a})`); gr.addColorStop(1, `rgba(${p},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); };
+    for (const [x0, y0, sp, pal, n] of [[.18, .25, .4, ["120,60,230", "70,90,230", "170,60,190"], 46], [.84, .78, .32, ["60,110,230", "110,70,220", "40,160,210"], 36], [.62, .08, .3, ["150,60,200", "90,60,210"], 26]])
+      for (let i = 0; i < n; i++) blob((x0 + (r() - .5) * sp) * w, (y0 + (r() - .5) * sp) * hh, (.05 + r() * .13) * m, pal[Math.floor(r() * pal.length)], .005 + r() * .009);
+    for (let i = 0; i < 200; i++) { const u = r(); blob(u * w, hh * (.08 + u * .55) + (r() - .5) * hh * .1, (.02 + r() * .06) * m, ["150,140,230", "110,120,220", "190,150,230"][i % 3], .006 + r() * .008); }
+    if (scene.background) scene.background.dispose(); scene.background = new THREE.CanvasTexture(c);
+  }
+  paintSky();
+
+  function glass(color, base, rim) {
+    return new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color(...color.map(v => v / 255)) }, uBase: { value: base }, uRim: { value: rim }, uHeat: { value: 0 } },
+      vertexShader: `varying vec3 vN, vV; void main(){ vec4 mv = modelViewMatrix * vec4(position,1.); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform vec3 uColor; uniform float uBase, uRim, uHeat; varying vec3 vN, vV; void main(){ float f = pow(1. - abs(dot(normalize(vN), normalize(vV))), 2.4); float k = (uBase + f * uRim) * (1. + uHeat * 1.6); gl_FragColor = vec4(uColor * k, clamp(k * .9, 0., 1.)); }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.FrontSide });
+  }
+  const world = new THREE.Group(), brainG = new THREE.Group(); scene.add(world); world.add(brainG);
+  const areas = {}, allVerts = [], sparks = [];
+  const b64 = (s, T) => { const b = Uint8Array.from(atob(s), c => c.charCodeAt(0)); return new T(b.buffer); };
+  const geos = window.BRAIN_LITE.groups.map(g => { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(b64(g.p, Float32Array), 3)); geo.setIndex(new THREE.BufferAttribute(b64(g.i, Uint32Array), 1)); return { ...g, geo }; });
+  const box = new THREE.Box3(); for (const g of geos) { g.geo.computeBoundingBox(); box.union(g.geo.boundingBox); }
+  const ctr = box.getCenter(new THREE.Vector3()), sz = box.getSize(new THREE.Vector3()), k = 2 / Math.max(sz.x, sz.y, sz.z);
+  for (const g of geos) {
+    g.geo.translate(-ctr.x, -ctr.y, -ctr.z); g.geo.scale(k, k, k); g.geo.computeVertexNormals();
+    const a = g.area && D.areas[g.area] ? (areas[g.area] ||= { c: rgb(D.areas[g.area].color), mats: [], verts: [], heat: 0 }) : null;
+    const col = a ? mix(VIOLET, a.c, .55) : g.type === "inner" ? [120, 90, 230] : VIOLET;
+    const mat = g.type === "shell" ? glass(VIOLET, .003, .08) : g.type === "cortex" ? glass(col, .017, .46) : glass(col, .003, .07);
+    if (g.type === "inner") mat.side = THREE.DoubleSide;
+    if (a) a.mats.push(mat);
+    brainG.add(new THREE.Mesh(g.geo, mat));
+    const p = g.geo.attributes.position, step = Math.max(1, Math.floor(p.count / 2600));
+    for (let i = 0; i < p.count; i += step) { const v = new THREE.Vector3().fromBufferAttribute(p, i); allVerts.push(v); if (a) a.verts.push(v); }
+  }
+  { const pts = []; let s = 3; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;     // faint violet fibres
+    for (let i = 0; i < 1400; i++) { const a = allVerts[Math.floor(r() * allVerts.length)]; let b = allVerts[Math.floor(r() * allVerts.length)];
+      for (let t = 0; t < 6 && a.distanceTo(b) > .55; t++) b = allVerts[Math.floor(r() * allVerts.length)];
+      const m = a.clone().lerp(b, .5).multiplyScalar(.92); pts.push(a, m, m, b); }
+    brainG.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0x7a4cff, transparent: true, opacity: .05, blending: THREE.AdditiveBlending, depthWrite: false }))); }
+
+  function spark(key, colour = [235, 240, 255]) {
+    const a = areas[key], vs = a ? a.verts : allVerts; if (!vs.length) return;
+    if (a) a.heat = 1;
+    const paths = [], r = Math.random, start = vs[Math.floor(r() * vs.length)];
+    for (let b = 0; b < 3; b++) { let p = start.clone(); const path = [p.clone()];
+      for (let s = 0; s < 9; s++) { let best = null, bd = 1e9;
+        for (let t = 0; t < 14; t++) { const q = vs[Math.floor(r() * vs.length)], d = q.distanceTo(p); if (d > .03 && d < bd) { bd = d; best = q; } }
+        if (!best || bd > .35) break;
+        const mid = p.clone().lerp(best, .5).add(new THREE.Vector3((r() - .5) * .04, (r() - .5) * .04, (r() - .5) * .04));
+        path.push(mid, mid.clone(), best.clone()); p = best.clone(); path.push(p.clone()); }
+      for (let i = 0; i + 1 < path.length; i += 2) paths.push(path[i], path[i + 1]); }
+    const line = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(paths), new THREE.LineBasicMaterial({ color: new THREE.Color(...colour.map(v => v / 255)), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    brainG.add(line); sparks.push({ line, born: performance.now(), life: 1400 });
+  }
+
+  // Drag to rotate (dragging up looks up), slow idle turn.
+  let yaw = -.6, pitch = .12, vy = 0, drag = null;
+  glc.addEventListener("pointerdown", e => { drag = [e.clientX, e.clientY]; glc.setPointerCapture(e.pointerId); });
+  glc.addEventListener("pointermove", e => { if (!drag) return; yaw += (e.clientX - drag[0]) * .005; pitch = Math.max(-.8, Math.min(.8, pitch + (e.clientY - drag[1]) * .004)); drag = [e.clientX, e.clientY]; });
+  glc.addEventListener("pointerup", () => drag = null);
+  function resize() { W = glc.clientWidth; H = glc.clientHeight; renderer.setSize(W, H, false); composer.setSize(W, H); camera.aspect = W / H; camera.updateProjectionMatrix(); paintSky(); }
+  let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(resize, 200); });
+
+  let visible = true, last = 0, slow = 0, quality = 0;
+  new IntersectionObserver(([e]) => visible = e.isIntersecting).observe($("#hero"));
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (!visible || document.hidden || t - last < 33) return;      // 30 fps cap; nothing drawn while scrolled away
+    const dt = t - last; last = t;
+    slow = slow * .95 + (dt > 45 ? 1 : 0) * .05;
+    if (slow > .5 && quality < 2) { quality++; slow = 0; renderer.setPixelRatio(quality === 1 ? 1 : .75); resize(); }   // adaptive quality
+    if (!drag) yaw += .0016;
+    const wide = W > 1080;
+    world.rotation.set(pitch, yaw, 0); world.position.set(wide ? .15 : 0, wide ? .05 : .45, 0);
+    camera.position.set(0, 0, W < 680 ? 8.2 : 6.2); camera.lookAt(0, 0, 0);
+    space.rotation.y = yaw * .35; spaceU.uTime.value = t / 1000;
+    for (const a of Object.values(areas)) { a.heat *= .965; for (const m of a.mats) m.uniforms.uHeat.value = a.heat; }
+    for (let i = sparks.length - 1; i >= 0; i--) { const s = sparks[i], age = (t - s.born) / s.life;
+      if (age >= 1) { brainG.remove(s.line); s.line.geometry.dispose(); s.line.material.dispose(); sparks.splice(i, 1); continue; }
+      s.line.material.opacity = Math.max(0, age < .1 ? age * 10 : 1 - (age - .1) / .9); }
+    composer.render();
+  }
+  requestAnimationFrame(frame);
+  setInterval(() => { if (visible) spark(null); }, 3800);
+  return { spark };
+})();
+
+// Replay the demo activity log: a write sparks gold, a read blue, in the area the note belongs to.
+(function replay() {
+  const ev = D.events.filter(e => e.note !== "index"); let i = 0;
+  const tick = () => { const e = ev[i++ % ev.length]; pushFeed(e); Brain.spark(noteArea(e.note), e.op === "push" ? [255, 207, 122] : [127, 216, 255]); };
+  for (let k = 0; k < 6; k++) tick();
+  setInterval(() => { if (!document.hidden) tick(); }, 1700);
+})();
+
+// ---------------- pipeline graph ----------------
+let GRAPH = D.graph, PLAN = D.plan;
+const KIND = { input: "INPUT", retrieve: "RETRIEVE", gate: "COST GATE", extract: "EXTRACT · $0", llm: "MODEL CALL", verify: "VERIFY", emit: "EMIT", refuse: "REFUSE" };
+const paramText = n => ({
+  retrieve: `top ${n.params.k ?? 4} notes`, gate: `confidence ≥ ${(+(n.params.threshold ?? 0)).toFixed(2)}`,
+  llm: `${(n.params.tier || "cheap") === "cheap" ? "haiku-5.5" : "opus-5.5"} · ≤${n.params.max_tokens ?? 400} tok`,
+  verify: `cited · ≤${n.params.max_age_days ?? 90} days old`, extract: "quote best sentences", input: "question", emit: "answer + evidence", refuse: "say it isn't known",
+}[n.kind] || "");
+
+function drawGraph() {
+  const g = $("#graph"); g.replaceChildren();
+  const steps = PLAN.steps, by = Object.fromEntries(steps.map(s => [s.id, s]));
+  const depth = {}; for (const s of steps) depth[s.id] = s.inputs.length ? Math.max(...s.inputs.map(e => depth[e.source] + 1)) : 0;
+  const cols = Math.max(...Object.values(depth)) + 1, NW = 128, NH = 58, GAP = 44, W = cols * NW + (cols - 1) * GAP + 8, H = 380;
+  g.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const colX = c => 4 + c * (NW + GAP);
+  const pos = {};
+  for (let c = 0; c < cols; c++) {
+    const ids = steps.filter(s => depth[s.id] === c).map(s => s.id);
+    ids.forEach((id, i) => {
+      let y;
+      if (ids.length === 1) { const ps = by[id].inputs.map(e => pos[e.source]?.y).filter(v => v != null); y = ps.length ? ps.reduce((a, b) => a + b) / ps.length : H / 2; }
+      else y = H * (i + 1) / (ids.length + 1) + (i === 0 ? -20 : 20);
+      pos[id] = { x: colX(c), y };
+    });
+  }
+  const defs = svg("defs"); g.append(defs);
+  for (const s of steps) for (const e of s.outputs) {
+    const a = pos[e.source], b = pos[e.target];
+    const x1 = a.x + NW, y1 = a.y, x2 = b.x, y2 = b.y, mx = (x1 + x2) / 2;
+    g.append(svg("path", { class: "edge", "data-e": `${e.source}>${e.target}`, d: `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}` }));
+    if (e.when !== "always") g.append(svg("text", { class: "elabel", x: mx, y: (y1 + y2) / 2 + (y1 === y2 ? -6 : 3), "text-anchor": "middle", "paint-order": "stroke", stroke: "#08061a", "stroke-width": 4, fill: e.when === "pass" ? "#6ef0b4" : "#ff7a8a" }, e.when.toUpperCase()));
+  }
+  for (const s of steps) {
+    const p = pos[s.id];
+    g.append(svg("g", { class: "node", id: "n-" + s.id, transform: `translate(${p.x},${p.y - NH / 2})` },
+      svg("rect", { width: NW, height: NH, rx: 12 }),
+      svg("text", { class: "nk", x: 12, y: 17 }, KIND[s.kind] || s.kind.toUpperCase()),
+      svg("text", { class: "ni", x: 12, y: 35 }, s.id),
+      svg("text", { class: "np", x: 12, y: 50 }, paramText(s))));
+  }
+  $("#gid").textContent = `${PLAN.graph_id} v${PLAN.graph_version}`; $("#ghash").textContent = PLAN.hash; $("#gworst").textContent = usd(PLAN.worst_case_usd);
+}
+drawGraph();
+
+function resetGraph() {
+  document.querySelectorAll("#graph .node").forEach(n => n.setAttribute("class", "node"));
+  document.querySelectorAll("#graph .edge").forEach(e => e.setAttribute("class", "edge"));
+}
+
+const detailText = t => {
+  const d = t.detail || {};
+  switch (t.kind) {
+    case "input": return [h("b", {}, "question "), `“${d.question}”`];
+    case "retrieve": return [h("b", {}, `${(d.hits || []).length} notes`), ` · ${(d.hits || []).join(", ")}`];
+    case "gate": return t.status === "skipped" ? "skipped" : [h("b", {}, `${(+d.confidence).toFixed(2)} ${t.status === "pass" ? "≥" : "<"} ${d.threshold}`), ` → ${t.status}`];
+    case "extract": return t.status === "skipped" ? "skipped" : [h("b", {}, "no model call"), " · answered from the notes"];
+    case "llm": return t.status === "skipped" ? "skipped" : [h("b", {}, d.model), ` · ${d.input_tokens} in / ${d.output_tokens} out`, d.offline ? " · offline stand-in" : ""];
+    case "verify": return t.status === "skipped" ? "skipped" : [h("b", {}, `${t.status} `), (d.problems || []).length ? d.problems.join("; ") : `cites ${(d.citations || []).join(", ")}`];
+    case "emit": return t.status === "skipped" ? "skipped" : h("b", {}, "answer emitted with evidence");
+    case "refuse": return t.status === "skipped" ? "skipped" : [h("b", {}, "refused"), " · " + (d.reason || "")];
+  }
+  return JSON.stringify(d);
+};
+
+let running = false;
+async function animateRun(r) {
+  running = true; $("#askbtn").disabled = true;
+  resetGraph(); $("#trace").replaceChildren(); $("#answer").className = "card answer"; $("#answer").replaceChildren();
+  $("#runid").textContent = "run " + r.run_id; $("#m-conf").textContent = "–"; $("#m-cost").textContent = "$0"; $("#m-calls").textContent = "0";
+  let cost = 0, calls = 0;
+  for (const t of r.trace) {
+    const node = document.getElementById("n-" + t.step);
+    if (t.status === "skipped") { node?.setAttribute("class", "node skipped"); $("#trace").append(h("div", { class: "tr skipped" }, h("i", { class: "s" }), h("span", { class: "d" }, t.step + " · skipped"), h("span", {}))); continue; }
+    node?.setAttribute("class", "node active");
+    await sleep(380);
+    node?.setAttribute("class", "node " + (t.status === "ok" ? "ok" : t.status));
+    const st = PLAN.steps.find(s => s.id === t.step);
+    for (const e of st ? st.outputs : []) if (e.when === "always" || e.when === t.status) document.querySelector(`#graph .edge[data-e="${e.source}>${e.target}"]`)?.setAttribute("class", "edge taken");
+    cost += t.cost_usd; if (t.kind === "llm") calls++;
+    if (t.kind === "retrieve") { $("#m-conf").textContent = (+t.detail.confidence).toFixed(2); for (const id of t.detail.hits || []) Brain.spark(noteArea(id), [127, 216, 255]); }
+    $("#m-cost").textContent = usd(cost); $("#m-calls").textContent = calls;
+    $("#trace").append(h("div", { class: "tr " + t.status }, h("i", { class: "s" }), h("span", { class: "d" }, t.step + " · ", ...[].concat(detailText(t))), h("span", { class: "c" }, t.ms.toFixed(1) + "ms")));
+    $("#trace").scrollTop = 1e6;
+    await sleep(220);
+  }
+  showAnswer(r);
+  running = false; $("#askbtn").disabled = false;
+}
+
+function showAnswer(r) {
+  const box = $("#answer");
+  const para = h("p");
+  if (r.answer) for (const part of r.answer.split(/(\[[a-z0-9-]+\])/)) para.append(/^\[[a-z0-9-]+\]$/.test(part) ? h("span", { class: "cite" }, part.slice(1, -1)) : part);
+  else para.textContent = "That isn't in the brain, or the notes that mention it can't back an answer. Refusing costs nothing and doesn't guess.";
+  const ev = r.evidence.map(e => h("div", { class: "ev", style: `border-left-color:${area(e.area).color}` },
+    h("div", { class: "h" }, h("span", { style: `color:${area(e.area).color}` }, area(e.area).label), h("span", {}, `score ${e.score.toFixed(2)} · ${e.age_days}d old`)),
+    h("div", { class: "n" }, e.note_id), h("q", {}, e.quote)));
+  box.append(h("div", { class: "verdict " + r.outcome }, r.outcome === "answered" ? `Answered · ${r.evidence.length} cited note${r.evidence.length === 1 ? "" : "s"} · ${usd(r.cost_usd)}` : `Refused · ${usd(r.cost_usd)}`),
+    para, r.evidence.length ? h("div", { class: "evidence" }, ev) : null);
+  box.className = "card answer show";
+}
+
+async function ask(q) {
+  if (running || !q.trim()) return;
+  $("#q").value = q;
+  let r = D.runs[q];
+  if (LIVE) {
+    try { const res = await fetch(API + "/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) }); if (res.ok) r = await res.json(); } catch {}
+  }
+  if (!r) { $("#askhint").textContent = "Offline: free-text questions need the API (uvicorn cortex.app:app). Pick a preset to see a recorded run."; return; }
+  animateRun(r);
+}
+$("#chips").append(...D.presets.map(p => h("button", { class: "chip", type: "button", onclick: () => ask(p) }, p)));
+$("#askform").addEventListener("submit", e => { e.preventDefault(); ask($("#q").value); });
+
+// ---------------- agent ----------------
+const AGENT_PRESETS = ["Only trust notes newer than 30 days", "Require confidence 90", "Use the strong model for drafts", "Never call a model"];
+let currentProposal = null;
+function steps(n) { [...$("#agentsteps").children].forEach((s, i) => s.classList.toggle("on", i < n)); }
+function showProposal(p) {
+  currentProposal = p;
+  $("#planner").textContent = "planner: " + p.planner + (p.attempts > 1 ? ` · ${p.attempts} attempts` : "");
+  $("#ops").replaceChildren(...(p.ops.length ? p.ops.map(o => h("div", { class: "op" }, h("span", { class: "k" }, o.op),
+    h("span", { class: "v" }, Object.entries(o).filter(([k, v]) => k !== "op" && v != null).map(([k, v]) => `${k}=${v}`).join("  ")))) : [h("div", { class: "op" }, h("span", { class: "k" }, "—"), h("span", { class: "v" }, p.rationale))]));
+  const diff = [];
+  if (p.graph) {
+    const before = Object.fromEntries(GRAPH.nodes.map(n => [n.id, n])), after = Object.fromEntries(p.graph.nodes.map(n => [n.id, n]));
+    for (const id of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      const a = before[id], b = after[id];
+      if (!b) diff.push(h("div", { class: "diffrow" }, h("span", { class: "old" }, `${id} (${a.kind})`), " removed"));
+      else if (!a) diff.push(h("div", { class: "diffrow" }, h("span", { class: "new" }, `${id} (${b.kind})`), " added"));
+      else if (JSON.stringify(a.params) !== JSON.stringify(b.params)) diff.push(h("div", { class: "diffrow" }, id + ": ", h("span", { class: "old" }, paramText(a)), " → ", h("span", { class: "new" }, paramText(b))));
+    }
+  }
+  $("#diff").replaceChildren(...(diff.length ? diff : [h("div", { class: "diffrow", style: "color:var(--dim)" }, "No graph change.")]));
+  $("#pver").textContent = p.graph ? `v${p.base_version} → v${p.graph.version}` : "";
+  const ok = p.status === "pending";
+  $("#pstatus").replaceChildren(h("div", { class: "status " + (ok ? "wait" : p.status === "deployed" ? "ok" : "bad") },
+    ok ? "✓ compiles · waiting for a human to confirm" : p.status === "deployed" ? "✓ deployed" : "✕ " + p.errors.map(e => `${e.code}: ${e.message}`).join(" · ")));
+  $("#confirm").disabled = !(ok && LIVE);
+  $("#confirm").title = LIVE ? "" : "Confirming deploys to the running API; start it to try this.";
+  steps(ok ? 4 : 3);
+}
+async function proposeAgent(instr) {
+  $("#instr").value = instr;
+  if (LIVE) {
+    try { const res = await fetch(API + "/agent/proposals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: instr }) }); if (res.ok) return showProposal(await res.json()); } catch {}
+  }
+  if (instr === D.proposal.instruction) return showProposal(D.proposal);
+  $("#pstatus").replaceChildren(h("div", { class: "status bad" }, "Offline: start the API to send your own instructions. The first preset is recorded."));
+}
+$("#agentchips").append(...AGENT_PRESETS.map(p => h("button", { class: "chip", type: "button", onclick: () => proposeAgent(p) }, p)));
+$("#agentform").addEventListener("submit", e => { e.preventDefault(); proposeAgent($("#instr").value); });
+$("#confirm").addEventListener("click", async () => {
+  if (!currentProposal || !LIVE) return;
+  const res = await fetch(`${API}/agent/proposals/${currentProposal.id}/confirm`, { method: "POST" });
+  const body = await res.json();
+  if (!res.ok) { $("#pstatus").replaceChildren(h("div", { class: "status bad" }, "✕ " + (body.detail || res.status))); return; }
+  currentProposal.status = "deployed"; showProposal(currentProposal); steps(5); $("#confirm").disabled = true;   // diff against the old graph first
+  const g = await (await fetch(API + "/graph")).json(); GRAPH = g.graph; PLAN = g.plan; drawGraph();
+});
+showProposal(D.proposal);
+
+// ---------------- evals ----------------
+(function evals() {
+  const e = D.eval;
+  $("#bignums").append(
+    h("div", {}, h("b", {}, Math.round(e.accuracy * 100) + "%"), h("span", {}, "accuracy"), h("small", {}, `${e.cases} golden questions, ${e.rows.filter(r => r.recall === null).length} of them unanswerable`)),
+    h("div", {}, h("b", {}, `${e.model_calls}/${e.cases}`), h("span", {}, "needed a model"), h("small", {}, "the rest were answered or refused for $0")),
+    h("div", {}, h("b", {}, usd(e.total_cost_usd)), h("span", {}, "total cost"), h("small", {}, "offline stand-in priced like Haiku 5.5")));
+  $("#evalrows").append(...e.rows.map(r => h("tr", {},
+    h("td", {}, r.q),
+    h("td", {}, h("span", { class: "pill " + (r.ok ? "ok" : "no") }, r.ok ? "PASS" : "FAIL"), " ", r.outcome),
+    h("td", { class: "route" }, ...r.route.flatMap((s, i) => [i ? " › " : "", s === "draft" ? h("span", { class: "m" }, s) : s])))));
+})();
+
+// ---------------- fit ----------------
+$("#maprows").append(...[
+  ["“The compiler that turns a Studio graph into an execution plan”", "Graph → validated, topologically ordered plan with a stable hash. All errors at once, with codes.", "cortex/graph.py"],
+  ["“Cost gating where a cheap model decides when an expensive one runs”", "A $0 retrieval score gates the model call. The worst-case cost of every path is checked against a budget at compile time.", "graph.py · runtime.py"],
+  ["“Getting an LLM to reliably manipulate a structured graph”", "Typed operations through structured outputs, a compile-and-repair loop, human confirmation and optimistic concurrency.", "cortex/agent.py"],
+  ["“Structured, auditable events and evidence an operator can trust”", "Every step is traced with cost and timing. Answers carry quotes, scores and ages, and every evidence read goes to the event log.", "runtime.py · store.py"],
+  ["“Tests and evaluation harnesses for non-deterministic model calls”", "A deterministic offline model for CI, a golden set with refusal cases, and regression gates on accuracy and cost.", "tests/ · evals/"],
+].map(([q, a, f]) => h("div", { class: "maprow" }, h("div", { class: "q" }, q), h("div", { class: "arrow" }, "→"), h("div", { class: "a" }, a), h("div", { class: "f" }, f))));
+
+// ---------------- live API? ----------------
+(async function detect() {
+  const badge = $("#mode");
+  try {
+    const ctl = new AbortController(); setTimeout(() => ctl.abort(), 1500);
+    const res = await fetch(API + "/health", { signal: ctl.signal });
+    const j = await res.json();
+    LIVE = !!j.ok;
+    badge.classList.add("live"); badge.lastElementChild.textContent = j.live_models ? "LIVE API · CLAUDE" : "LIVE API · OFFLINE MODELS";
+    $("#askhint").textContent = "Connected to the API: ask anything.";
+    const g = await (await fetch(API + "/graph")).json(); GRAPH = g.graph; PLAN = g.plan; drawGraph();
+  } catch {
+    badge.lastElementChild.textContent = "RECORDED RUNS";
+    $("#askhint").textContent = "Showing recorded runs from the real service code. Run the API locally to ask your own questions.";
+  }
+  $("#foot-api").textContent = LIVE ? `API: ${API}` : "Run it: uvicorn cortex.app:app · then reload";
+  showProposal(currentProposal || D.proposal);
+  const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { io.disconnect(); ask(D.presets[0]); } }, { threshold: .35 });
+  io.observe($("#pipeline"));
+})();
+</script>
+</body>
+</html>
